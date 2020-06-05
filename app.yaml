@@ -1,0 +1,7 @@
+runtime: go113
+
+env_variables:
+  INSTANCE_CONNECTION_NAME: massive-team-279205:us-west2:photoblogdb
+  DB_USER: master
+  DB_PASS: 1234
+  DB_NAME: photoblog
