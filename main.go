@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"os"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -50,6 +51,11 @@ func main() {
 	connection = fmt.Sprintf("%s:%s@unix(/cloudsql/%s)/%s", dbUser, dbPwd , instanceConnectionName, dbName)
 	db, _ = sql.Open("mysql", connection)
 
+	
+	headers := handlers.AllowedHeaders([]string{"X-Requested-with", "Content-Type", "Authorization"})
+	methods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE"})
+	origins := handlers.AllowedOrigins([]string{"*"})
+
 	urls()
 
 	port := os.Getenv("PORT")
@@ -57,7 +63,7 @@ func main() {
 		port = "8080"
 	}
 
-	http.ListenAndServe(":" + port, r)
+	http.ListenAndServe(":" + port, handlers.CORS(headers, methods, origins)(r))
 }
 
 func home(w http.ResponseWriter, req *http.Request) {

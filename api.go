@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -10,9 +13,11 @@ import (
 	"strconv"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/api/option"
 )
 
 // LoginData is the login info submitted by user in front-end
@@ -31,17 +36,20 @@ type RegisterData struct {
 
 func userAPI(w http.ResponseWriter, req *http.Request) {
 	u := getUser(userID)
+
 	json.NewEncoder(w).Encode(u)
 }
 
 func postAPI(w http.ResponseWriter, req *http.Request) {
 	p := getPost(userID)
+
 	json.NewEncoder(w).Encode(p)
 }
 
 func feedAPI(w http.ResponseWriter, req *http.Request) {
 	var blogs blogFeeds
 	blogs = getBlogFeed()
+
 	json.NewEncoder(w).Encode(blogs)
 }
 
@@ -50,6 +58,7 @@ func blogIDAPI(w http.ResponseWriter, req *http.Request) {
 	temp := vars["blogID"]
 	id, _ := strconv.Atoi(temp)
 	comments := getComments(id)
+
 	json.NewEncoder(w).Encode(comments)
 }
 
@@ -58,6 +67,7 @@ func singleBlogAPI(w http.ResponseWriter, req *http.Request) {
 	temp := vars["blogID"]
 	blogID, _ := strconv.Atoi(temp)
 	blog := getBlogIDPost(blogID)
+
 	json.NewEncoder(w).Encode(blog)
 }
 
@@ -95,6 +105,7 @@ func requestLoginData(w http.ResponseWriter, req *http.Request) {
 }
 
 func requestRegisterData(w http.ResponseWriter, req *http.Request) {
+
 	// capture form
 	name := req.FormValue("name")
 	username := req.FormValue("username")
@@ -165,6 +176,7 @@ func requestRegisterData(w http.ResponseWriter, req *http.Request) {
 }
 
 func requestLogout(w http.ResponseWriter, req *http.Request) {
+
 	var loggedOut struct {
 		Loggedout string
 	}
@@ -178,6 +190,7 @@ func requestLogout(w http.ResponseWriter, req *http.Request) {
 }
 
 func requestLoginStatus(w http.ResponseWriter, req *http.Request) {
+
 	if loggedIn == true {
 		json.NewEncoder(w).Encode("true")
 	} else {
@@ -186,36 +199,32 @@ func requestLoginStatus(w http.ResponseWriter, req *http.Request) {
 }
 
 func uploadBlogPost(w http.ResponseWriter, req *http.Request) {
-	f, _, err := req.FormFile("image")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	f, _, _ := req.FormFile("image")
 	sID := uuid.NewV4()
+	if f != nil {
+		ctx := context.Background()
+		client, err := storage.NewClient(ctx, option.WithCredentialsFile("./massive-team-279205-069c46519860.json"))
+		if err != nil {
+			fmt.Println(err)
+		}
+		bh := client.Bucket("massive-team-279205.appspot.com")
+		obj := bh.Object(sID.String())
+
+		wc := obj.NewWriter(ctx)
+		io.Copy(wc, f)
+		wc.Close()
+		if err := obj.ACL().Set(ctx, storage.AllUsers, storage.RoleReader); err != nil {
+			fmt.Println(err)
+		}
+	}
 	defer f.Close()
-	// read
-	bs, err := ioutil.ReadAll(f)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	dst, err := os.Create(filepath.Join("userImages", sID.String()))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer dst.Close()
-	_, err = dst.Write(bs)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	content := req.FormValue("content")
 	dt := time.Now()
 	saveImage(userID, content, dt.Format("2006-01-02 15:04:05"), sID.String())
 }
 
 func postUserComment(w http.ResponseWriter, req *http.Request) {
+
 	comment := req.FormValue("userComment")
 	iD := req.FormValue("ID")
 	blogID, _ := strconv.Atoi(iD)
@@ -224,6 +233,7 @@ func postUserComment(w http.ResponseWriter, req *http.Request) {
 }
 
 func updateUserName(w http.ResponseWriter, req *http.Request) {
+
 	newUsername := req.FormValue("newUsername")
 	u := getUser(userID) // current info
 
@@ -242,6 +252,7 @@ func updateUserName(w http.ResponseWriter, req *http.Request) {
 }
 
 func updateProfilePic(w http.ResponseWriter, req *http.Request) {
+
 	u := getUser(userID) // current info
 
 	f, _, err := req.FormFile("ProfilePic")
