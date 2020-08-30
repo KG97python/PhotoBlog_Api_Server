@@ -5,4 +5,4 @@ env_variables:
   DB_USER: root
   DB_PASS: 1234
   DB_NAME: socialmedia
-  GOOGLE_APPLICATION_CREDENTIALS: "./massive-team-279205-069c46519860.json"
+  GOOGLE_APPLICATION_CREDENTIALS: "./socialmedia-287916-d8a7458dc360.json"

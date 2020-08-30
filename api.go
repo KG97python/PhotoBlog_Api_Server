@@ -203,11 +203,11 @@ func uploadBlogPost(w http.ResponseWriter, req *http.Request) {
 	sID := uuid.NewV4()
 	if f != nil {
 		ctx := context.Background()
-		client, err := storage.NewClient(ctx, option.WithCredentialsFile("./massive-team-279205-069c46519860.json"))
+		client, err := storage.NewClient(ctx, option.WithCredentialsFile("./socialmedia-287916-d8a7458dc360.json"))
 		if err != nil {
 			fmt.Println(err)
 		}
-		bh := client.Bucket("massive-team-279205.appspot.com")
+		bh := client.Bucket("socialmedia-287916.appspot.com")
 		obj := bh.Object(sID.String())
 
 		wc := obj.NewWriter(ctx)
