@@ -126,6 +126,7 @@ func requestRegisterData(w http.ResponseWriter, req *http.Request) {
 
 	// capture ProfilePic
 	f, _, err := req.FormFile("image")
+	// if image is emptly assign default profilePic.
 	if err != nil {
 		// insert into the database
 		stmt, err := db.Prepare(`INSERT INTO users(fullName, userName, email, password, profilePic) VALUES(?,?,?,?,?);`)
@@ -141,27 +142,25 @@ func requestRegisterData(w http.ResponseWriter, req *http.Request) {
 		return
 	} else {
 		defer f.Close()
-		// read
-		bs, err := ioutil.ReadAll(f)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 		sID := uuid.NewV4()
 
-		//store in server
-		dst, err := os.Create(filepath.Join("userImages/profileImage", sID.String()))
+		// store in MYSQL server
+		ctx := context.Background()
+		client, err := storage.NewClient(ctx, option.WithCredentialsFile("./socialmedia-287916-d8a7458dc360.json"))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+			fmt.Println(err)
 		}
-		defer dst.Close()
+		bh := client.Bucket("socialmedia-287916.appspot.com")
+		obj := bh.Object(sID.String())
 
-		_, err = dst.Write(bs)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		wc := obj.NewWriter(ctx)
+		io.Copy(wc, f)
+		wc.Close()
+		if err := obj.ACL().Set(ctx, storage.AllUsers, storage.RoleReader); err != nil {
+			fmt.Println(err)
 		}
+		defer f.Close()
+
 		// insert into the database
 		stmt, err := db.Prepare(`INSERT INTO users(fullName, userName, email, password, profilePic) VALUES(?,?,?,?,?);`)
 		if err != nil {
@@ -201,6 +200,8 @@ func requestLoginStatus(w http.ResponseWriter, req *http.Request) {
 func uploadBlogPost(w http.ResponseWriter, req *http.Request) {
 	f, _, _ := req.FormFile("image")
 	sID := uuid.NewV4()
+
+	//save image on gloud bucket
 	if f != nil {
 		ctx := context.Background()
 		client, err := storage.NewClient(ctx, option.WithCredentialsFile("./socialmedia-287916-d8a7458dc360.json"))
