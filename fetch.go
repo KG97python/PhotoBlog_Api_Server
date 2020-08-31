@@ -108,7 +108,7 @@ func saveImage(ID int, content, time, imageID string) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	_, err = stmt.Exec(nil, userEmail, userName, ID, profilePic, content, imageID, time)
+	_, err = stmt.Exec(userEmail, userName, ID, profilePic, content, imageID, time)
 	if err != nil {
 		log.Fatalln(err)
 	}

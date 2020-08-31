@@ -144,7 +144,7 @@ func requestRegisterData(w http.ResponseWriter, req *http.Request) {
 		defer f.Close()
 		sID := uuid.NewV4()
 
-		// store in MYSQL server
+		// store in MYSQL bucket
 		ctx := context.Background()
 		client, err := storage.NewClient(ctx, option.WithCredentialsFile("./socialmedia-287916-d8a7458dc360.json"))
 		if err != nil {
