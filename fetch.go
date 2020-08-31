@@ -87,6 +87,7 @@ func verifyUser(email string) bool {
 	return check
 }
 
+//save image to db
 func saveImage(ID int, content, time, imageID string) {
 	var (
 		userName   string
