@@ -94,7 +94,7 @@ func saveImage(ID int, content, time, imageID string) {
 		userEmail  string
 		profilePic string
 	)
-	stmt, err := db.Prepare(`INSERT INTO userimages VALUES (?,?,?,?,?,?,?,?);`)
+	stmt, err := db.Prepare(`INSERT INTO userimages VALUES (?,?,?,?,?,?,?);`)
 	if err != nil {
 		log.Fatalln(err)
 	}
