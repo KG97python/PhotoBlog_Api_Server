@@ -5,11 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -255,33 +252,35 @@ func updateUserName(w http.ResponseWriter, req *http.Request) {
 func updateProfilePic(w http.ResponseWriter, req *http.Request) {
 
 	u := getUser(userID) // current info
+	sID := uuid.NewV4()  // new pic name
 
+	// get newprofilePic
 	f, _, err := req.FormFile("ProfilePic")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	//save image on gloud bucket
+	if f != nil {
+		ctx := context.Background()
+		client, err := storage.NewClient(ctx, option.WithCredentialsFile("./socialmedia-287916-d8a7458dc360.json"))
+		if err != nil {
+			fmt.Println(err)
+		}
+		bh := client.Bucket("socialmedia-287916.appspot.com")
+		obj := bh.Object(sID.String())
+
+		wc := obj.NewWriter(ctx)
+		io.Copy(wc, f)
+		wc.Close()
+		if err := obj.ACL().Set(ctx, storage.AllUsers, storage.RoleReader); err != nil {
+			fmt.Println(err)
+		}
+	}
 	defer f.Close()
-	// read
-	bs, err := ioutil.ReadAll(f)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	sID := uuid.NewV4() // new pic name
-	dst, err := os.Create(filepath.Join("userImages/profileImage", sID.String()))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer dst.Close()
 
-	_, err = dst.Write(bs)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
+	// update the database.
 	stmtUsers, _ := db.Prepare(`UPDATE users SET profilePic=? WHERE profilePic=?;`)
 	defer stmtUsers.Close()
 
