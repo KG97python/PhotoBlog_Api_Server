@@ -21,6 +21,7 @@ import (
 type LoginData struct {
 	Email    string
 	Password string
+	UUID     string
 }
 
 // RegisterData is the register info submitted by user in front-end
@@ -32,14 +33,29 @@ type RegisterData struct {
 }
 
 func userAPI(w http.ResponseWriter, req *http.Request) {
-	u := getUser(userID)
+	// obtain user UUID cookie Value
+	vars := mux.Vars(req)
+	uuid := vars["uuid"]
+	// use UUID to obtain user ID
+	ID := dbSessions[uuid]
 
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	u := getUser(ID)
 	json.NewEncoder(w).Encode(u)
 }
 
 func postAPI(w http.ResponseWriter, req *http.Request) {
-	p := getPost(userID)
+	// obtain user UUID cookie Value
+	vars := mux.Vars(req)
+	uuid := vars["uuid"]
 
+	// use UUID to obtain user ID
+	ID := dbSessions[uuid]
+
+	p := getPost(ID)
 	json.NewEncoder(w).Encode(p)
 }
 
@@ -82,11 +98,13 @@ func requestLoginData(w http.ResponseWriter, req *http.Request) {
 	}
 	stmt, err := db.Prepare("SELECT ID, password FROM users WHERE email = ?")
 	if err != nil {
+		fmt.Println(err, "error with email")
 		log.Fatal(err)
 	}
 	defer stmt.Close()
 	err = stmt.QueryRow(login.Email).Scan(&ID, &passwordDb)
 	if err != nil {
+		fmt.Println(err, "error with password")
 		http.Error(w, "Email and/or password do not match", http.StatusForbidden)
 		return
 	}
@@ -97,8 +115,9 @@ func requestLoginData(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// login purposes
-	userID = ID
-	loggedIn = true
+	u := getUser(ID)
+	dbSessions[login.UUID] = ID
+	dbUsers[ID] = u
 }
 
 func requestRegisterData(w http.ResponseWriter, req *http.Request) {
@@ -172,26 +191,21 @@ func requestRegisterData(w http.ResponseWriter, req *http.Request) {
 }
 
 func requestLogout(w http.ResponseWriter, req *http.Request) {
-
-	var loggedOut struct {
-		Loggedout string
+	// get uuid value
+	type loggedOut struct {
+		UUID string
 	}
-	err := json.NewDecoder(req.Body).Decode(&loggedOut)
+	var logout loggedOut
+	err := json.NewDecoder(req.Body).Decode(&logout)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	loggedIn = false
-	userID = 0
-}
-
-func requestLoginStatus(w http.ResponseWriter, req *http.Request) {
-
-	if loggedIn == true {
-		json.NewEncoder(w).Encode("true")
-	} else {
-		json.NewEncoder(w).Encode("false")
-	}
+	// use uuid to get iser ID
+	userID := dbSessions[logout.UUID]
+	// delete sessions
+	delete(dbSessions, logout.UUID)
+	delete(dbUsers, userID)
 }
 
 func uploadBlogPost(w http.ResponseWriter, req *http.Request) {
@@ -218,6 +232,9 @@ func uploadBlogPost(w http.ResponseWriter, req *http.Request) {
 	defer f.Close()
 	content := req.FormValue("content")
 	dt := time.Now()
+	// use the uuid to obtain user ID
+	ID := req.FormValue("uuid")
+	userID := dbSessions[ID]
 	saveImage(userID, content, dt.Format("2006-01-02 15:04:05"), sID.String())
 }
 
@@ -225,6 +242,10 @@ func postUserComment(w http.ResponseWriter, req *http.Request) {
 
 	comment := req.FormValue("userComment")
 	iD := req.FormValue("ID")
+	// use the uuid to obtain user ID
+	ID := req.FormValue("uuid")
+	userID := dbSessions[ID]
+
 	blogID, _ := strconv.Atoi(iD)
 	dt := time.Now()
 	saveComment(userID, comment, dt.Format("2006-01-02 15:04:05"), blogID)
@@ -233,6 +254,9 @@ func postUserComment(w http.ResponseWriter, req *http.Request) {
 func updateUserName(w http.ResponseWriter, req *http.Request) {
 
 	newUsername := req.FormValue("newUsername")
+	// use the uuid to obtain user ID
+	ID := req.FormValue("uuid")
+	userID := dbSessions[ID]
 	u := getUser(userID) // current info
 
 	stmtUsers, _ := db.Prepare(`UPDATE users SET userName=? WHERE userName=?;`)
@@ -250,7 +274,9 @@ func updateUserName(w http.ResponseWriter, req *http.Request) {
 }
 
 func updateProfilePic(w http.ResponseWriter, req *http.Request) {
-
+	// use the uuid to obtain user ID
+	iD := req.FormValue("uuid")
+	userID := dbSessions[iD]
 	u := getUser(userID) // current info
 	sID := uuid.NewV4()  // new pic name
 
